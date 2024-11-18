@@ -5,43 +5,36 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.utils import to_categorical
-from model import getModel
-from parseImages import parseImages
+from model import create_model
 from sklearn.preprocessing import LabelEncoder
+from loaddataset import *
 
-[images, labels] = parseImages('road-sign-detection/annotations', 'road-sign-detection/images')
+IMG_SIZE = 64
+NUM_CLASSES = 15  # Liczba klas w Twoim zbiorze danych
 
-images = images / 255
-label_encoder = LabelEncoder()
-labels = label_encoder.fit_transform(labels)
-labels = to_categorical(labels)
+train_images_dir = 'road-sign-detection/train/images'
+train_labels_dir = 'road-sign-detection/train/labels/'
 
-x_train, x_test, y_train, y_test = train_test_split(images, labels, test_size=0.2, random_state=42)
+# Wczytanie danych treningowych
+train_data = load_dataset(train_images_dir, train_labels_dir, IMG_SIZE)
 
-model = getModel(len(np.unique(labels)))
+# # Podział na obrazy i etykiety
+train_images = np.array([item[0] for item in train_data])
+train_labels = np.array([item[1] for item in train_data])
 
-history = model.fit(x_train, y_train, epochs=20, batch_size=32, validation_split=0.2)
+# # Przygotowanie etykiet w formacie one-hot
+train_labels = tf.keras.utils.to_categorical(train_labels, num_classes=NUM_CLASSES)
 
-test_loss, test_accuracy = model.evaluate(x_test, y_test)
-print(f"Dokładność na zbiorze testowym: {test_accuracy * 100:.2f}%")
+print(train_images.shape)
+print(train_labels.shape)
 
-# Wykres dokładności i straty
-plt.figure(figsize=(12, 4))
-plt.subplot(1, 2, 1)
-plt.plot(history.history['accuracy'], label='Treningowa')
-plt.plot(history.history['val_accuracy'], label='Walidacyjna')
-plt.title('Dokładność')
-plt.xlabel('Epoki')
-plt.ylabel('Dokładność')
-plt.legend()
 
-plt.subplot(1, 2, 2)
-plt.plot(history.history['loss'], label='Treningowa')
-plt.plot(history.history['val_loss'], label='Walidacyjna')
-plt.title('Strata')
-plt.xlabel('Epoki')
-plt.ylabel('Strata')
-plt.legend()
+input_shape = (IMG_SIZE, IMG_SIZE, 3)
+model = create_model(input_shape, NUM_CLASSES)
 
-plt.show()
+# # # Trenowanie modelu
+model.fit(train_images, train_labels, epochs=10, batch_size=32)
+
+# # # Zapisanie modelu
+model.save('yolo_model.h5')
+
